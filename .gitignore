@@ -1,0 +1,16 @@
+
+
+# Go workspace file
+go.work
+
+# Compiled binaries
+nginx-updater
+
+# IDE and editor files
+.idea/
+
+# Local configuration files
+config.yaml
+
+# Log files
+*.log

@@ -1,0 +1,34 @@
+[Unit]
+Description=nginx_updater - Automatic Nginx upstream configuration updater for Kubernetes
+Documentation=https://github.com/wujunyi792/nginx_updater
+After=network.target kubernetes.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/local/bin/nginx-updater
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nginx-updater
+
+# 环境变量（可选）
+# Environment="KUBECONFIG=/path/to/kubeconfig"
+
+# 安全设置
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/etc/nginx/conf.d
+
+# 资源限制（可选）
+# LimitNOFILE=65536
+# MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target
+
