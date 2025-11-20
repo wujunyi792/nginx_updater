@@ -59,7 +59,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nginx-updater-${{ matrix.name }}
-          path: dist/nginx-updater-${{ matrix.name }}${matrix.ext:-}
+          path: dist/nginx-updater-${{ matrix.name }}${{ matrix.ext || '' }}
           retention-days: 1
   
   release:
@@ -75,6 +75,8 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
+          pattern: nginx-updater-*
+          merge-multiple: true
           path: dist
       
       - name: Get tag name
@@ -86,6 +88,7 @@ jobs:
       
       - name: Create checksums
         run: |
+          mkdir -p dist
           cd dist
           sha256sum nginx-updater-* > checksums.txt
       
