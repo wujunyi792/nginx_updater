@@ -14,14 +14,41 @@ nginx_updater 是一个用于自动更新 Nginx upstream 配置的 Kubernetes �
 
 ## 安装
 
-### 编译
+### 快速安装（推荐）
+
+使用安装脚本快速安装和启动服务：
+
+```bash
+# 从 GitHub Release 下载二进制文件
+wget https://github.com/wujunyi792/nginx_updater/releases/download/v1.0.0/nginx-updater-linux-amd64
+chmod +x nginx-updater-linux-amd64
+
+# 运行安装脚本
+sudo ./install.sh nginx-updater-linux-amd64
+```
+
+或者如果二进制文件在当前目录：
+
+```bash
+sudo ./install.sh
+```
+
+安装脚本会自动完成：
+- 安装二进制文件到 `/usr/local/bin/`
+- 创建配置目录 `/etc/nginx_updater/`
+- 创建示例配置文件（如果不存在）
+- 安装并启动 systemd 服务
+
+### 手动安装
+
+#### 编译
 
 ```bash
 cd nginx_updater
 go build -o nginx-updater main.go
 ```
 
-### 二进制文件部署
+#### 二进制文件部署
 
 将编译好的 `nginx-updater` 二进制文件复制到目标服务器：
 
@@ -192,9 +219,15 @@ subjects:
 
 ## 系统服务
 
-nginx_updater 可以作为 systemd 服务运行。请参考 `nginx-updater.service` 文件进行配置。
+nginx_updater 可以作为 systemd 服务运行。
 
-安装 systemd 服务：
+### 使用安装脚本（推荐）
+
+```bash
+sudo ./install.sh [binary_path]
+```
+
+### 手动安装 systemd 服务
 
 ```bash
 sudo cp nginx-updater.service /etc/systemd/system/
@@ -202,6 +235,8 @@ sudo systemctl daemon-reload
 sudo systemctl enable nginx-updater
 sudo systemctl start nginx-updater
 ```
+
+### 服务管理
 
 查看服务状态：
 
@@ -213,6 +248,18 @@ sudo systemctl status nginx-updater
 
 ```bash
 sudo journalctl -u nginx-updater -f
+```
+
+重启服务：
+
+```bash
+sudo systemctl restart nginx-updater
+```
+
+停止服务：
+
+```bash
+sudo systemctl stop nginx-updater
 ```
 
 ## 故障排查

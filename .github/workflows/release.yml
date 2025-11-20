@@ -1,0 +1,124 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            name: linux-amd64
+          - goos: linux
+            goarch: arm64
+            name: linux-arm64
+          - goos: darwin
+            goarch: amd64
+            name: darwin-amd64
+          - goos: darwin
+            goarch: arm64
+            name: darwin-arm64
+          - goos: windows
+            goarch: amd64
+            name: windows-amd64
+            ext: .exe
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.2'
+      
+      - name: Get dependencies
+        run: go mod download
+      
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          OUTPUT="nginx-updater${matrix.ext:-}"
+          go build -ldflags="-s -w" -o "$OUTPUT" main.go
+          mkdir -p dist
+          mv "$OUTPUT" "dist/nginx-updater-${{ matrix.name }}${matrix.ext:-}"
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nginx-updater-${{ matrix.name }}
+          path: dist/nginx-updater-${{ matrix.name }}${matrix.ext:-}
+          retention-days: 1
+  
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+      
+      - name: Get tag name
+        id: tag
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "Tag name: $TAG_NAME"
+      
+      - name: Create checksums
+        run: |
+          cd dist
+          sha256sum nginx-updater-* > checksums.txt
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Release ${{ steps.tag.outputs.tag }}
+          body: |
+            ## nginx_updater ${{ steps.tag.outputs.tag }}
+            
+            ### Downloads
+            
+            - **Linux AMD64**: `nginx-updater-linux-amd64`
+            - **Linux ARM64**: `nginx-updater-linux-arm64`
+            - **macOS AMD64**: `nginx-updater-darwin-amd64`
+            - **macOS ARM64**: `nginx-updater-darwin-arm64`
+            - **Windows AMD64**: `nginx-updater-windows-amd64.exe`
+            
+            ### Checksums
+            
+            See `checksums.txt` for SHA256 checksums.
+            
+            ### Installation
+            
+            ```bash
+            # Download and install (Linux example)
+            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/nginx-updater-linux-amd64
+            chmod +x nginx-updater-linux-amd64
+            sudo mv nginx-updater-linux-amd64 /usr/local/bin/nginx-updater
+            ```
+          files: |
+            dist/nginx-updater-*
+            dist/checksums.txt
+          draft: false
+          prerelease: false
+
