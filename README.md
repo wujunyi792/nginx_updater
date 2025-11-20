@@ -305,6 +305,3 @@ go mod download
 go build -o nginx-updater main.go
 ```
 
-## 许可证
-
-[根据项目许可证填写]
