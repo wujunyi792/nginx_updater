@@ -48,11 +48,12 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 0
+          EXT: ${{ matrix.ext || '' }}
         run: |
-          OUTPUT="nginx-updater${matrix.ext:-}"
+          OUTPUT="nginx-updater${EXT}"
           go build -ldflags="-s -w" -o "$OUTPUT" main.go
           mkdir -p dist
-          mv "$OUTPUT" "dist/nginx-updater-${{ matrix.name }}${matrix.ext:-}"
+          mv "$OUTPUT" "dist/nginx-updater-${{ matrix.name }}${EXT}"
       
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
