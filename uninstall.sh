@@ -4,6 +4,8 @@
 #   sudo ./uninstall.sh              # 交互式，询问是否删除配置
 #   sudo ./uninstall.sh --purge      # 完全卸载，删除配置文件
 #   sudo ./uninstall.sh --keep-config # 保留配置文件
+#   sudo ./uninstall.sh --yes        # 跳过确认提示
+#   curl ... | sudo bash -s -- --purge  # 管道模式自动跳过确认
 
 set -e
 
@@ -24,10 +26,12 @@ fatal() { echo -e "${RED}$*${NC}" >&2; exit 1; }
 
 # 解析参数
 PURGE=""
+YES=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --purge)       PURGE="yes"; shift ;;
         --keep-config) PURGE="no";  shift ;;
+        --yes|-y)      YES="yes";   shift ;;
         *) shift ;;
     esac
 done
@@ -36,12 +40,15 @@ if [ "$EUID" -ne 0 ]; then
     fatal "请使用 sudo 运行此脚本"
 fi
 
-echo ""
-warn "即将卸载 nginx-updater，是否继续？[y/N]"
-read -r confirm < /dev/tty
-if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
-    echo "已取消"
-    exit 0
+# 管道模式自动跳过确认
+if [ "$YES" != "yes" ] && [ -t 0 ]; then
+    echo ""
+    warn "即将卸载 nginx-updater，是否继续？[y/N]"
+    read -r confirm
+    if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+        echo "已取消"
+        exit 0
+    fi
 fi
 
 echo ""
@@ -87,14 +94,19 @@ if [ -d "$CONFIG_DIR" ]; then
     elif [ "$PURGE" = "no" ]; then
         info "[4/4] 保留配置目录: $CONFIG_DIR"
     else
-        warn "[4/4] 发现配置目录: $CONFIG_DIR"
-        warn "  是否删除配置文件？[y/N]"
-        read -r del_conf < /dev/tty
-        if [ "$del_conf" = "y" ] || [ "$del_conf" = "Y" ]; then
-            rm -rf "$CONFIG_DIR"
-            info "  配置目录已删除"
+        # 管道模式下无法交互，默认保留配置
+        if [ ! -t 0 ]; then
+            info "[4/4] 保留配置目录: $CONFIG_DIR（使用 --purge 可删除）"
         else
-            info "  已保留配置目录"
+            warn "[4/4] 发现配置目录: $CONFIG_DIR"
+            warn "  是否删除配置文件？[y/N]"
+            read -r del_conf
+            if [ "$del_conf" = "y" ] || [ "$del_conf" = "Y" ]; then
+                rm -rf "$CONFIG_DIR"
+                info "  配置目录已删除"
+            else
+                info "  已保留配置目录"
+            fi
         fi
     fi
 else
