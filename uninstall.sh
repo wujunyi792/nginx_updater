@@ -38,7 +38,7 @@ fi
 
 echo ""
 warn "即将卸载 nginx-updater，是否继续？[y/N]"
-read -r confirm
+read -r confirm < /dev/tty
 if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
     echo "已取消"
     exit 0
@@ -89,7 +89,7 @@ if [ -d "$CONFIG_DIR" ]; then
     else
         warn "[4/4] 发现配置目录: $CONFIG_DIR"
         warn "  是否删除配置文件？[y/N]"
-        read -r del_conf
+        read -r del_conf < /dev/tty
         if [ "$del_conf" = "y" ] || [ "$del_conf" = "Y" ]; then
             rm -rf "$CONFIG_DIR"
             info "  配置目录已删除"
