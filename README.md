@@ -14,29 +14,42 @@ nginx_updater 是一个用于自动更新 Nginx upstream 配置的 Kubernetes �
 
 ## 安装
 
-### 快速安装（推荐）
+### 一键安装（推荐）
 
-使用安装脚本快速安装和启动服务：
+国内用户（默认通过 ghfast.top 加速）：
 
 ```bash
-# 从 GitHub Release 下载二进制文件
-wget https://github.com/wujunyi792/nginx_updater/releases/download/v1.0.0/nginx-updater-linux-amd64
-chmod +x nginx-updater-linux-amd64
-
-# 运行安装脚本
-sudo ./install.sh nginx-updater-linux-amd64
+curl -fsSL https://ghfast.top/https://raw.githubusercontent.com/wujunyi792/nginx_updater/main/install.sh | sudo bash
 ```
 
-或者如果二进制文件在当前目录：
+海外用户（直连）：
 
 ```bash
-sudo ./install.sh
+curl -fsSL https://raw.githubusercontent.com/wujunyi792/nginx_updater/main/install.sh | sudo bash -s -- --no-proxy
+```
+
+指定版本：
+
+```bash
+curl -fsSL https://ghfast.top/https://raw.githubusercontent.com/wujunyi792/nginx_updater/main/install.sh | sudo bash -s -- --version v0.1.4
+```
+
+自定义代理：
+
+```bash
+curl -fsSL ... | sudo bash -s -- --proxy https://mirror.ghproxy.com
+```
+
+使用本地二进制文件：
+
+```bash
+sudo ./install.sh --local ./nginx-updater-linux-amd64
 ```
 
 安装脚本会自动完成：
+- 检测系统架构，从 GitHub Releases 下载对应二进制文件
 - 安装二进制文件到 `/usr/local/bin/`
-- 创建配置目录 `/etc/nginx_updater/`
-- 创建示例配置文件（如果不存在）
+- 创建配置目录 `/etc/nginx_updater/` 和默认配置文件
 - 安装并启动 systemd 服务
 
 ### 手动安装
@@ -260,6 +273,19 @@ sudo systemctl restart nginx-updater
 
 ```bash
 sudo systemctl stop nginx-updater
+```
+
+## 卸载
+
+```bash
+# 交互式卸载（会询问是否删除配置文件）
+curl -fsSL https://ghfast.top/https://raw.githubusercontent.com/wujunyi792/nginx_updater/main/uninstall.sh | sudo bash
+
+# 完全卸载（删除配置文件）
+curl -fsSL https://ghfast.top/https://raw.githubusercontent.com/wujunyi792/nginx_updater/main/uninstall.sh | sudo bash -s -- --purge
+
+# 卸载但保留配置文件
+curl -fsSL https://ghfast.top/https://raw.githubusercontent.com/wujunyi792/nginx_updater/main/uninstall.sh | sudo bash -s -- --keep-config
 ```
 
 ## 故障排查

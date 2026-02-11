@@ -50,8 +50,9 @@ jobs:
           CGO_ENABLED: 0
           EXT: ${{ matrix.ext || '' }}
         run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
           OUTPUT="nginx-updater${EXT}"
-          go build -ldflags="-s -w" -o "$OUTPUT" main.go
+          go build -ldflags="-s -w -X main.version=${TAG_NAME}" -o "$OUTPUT" main.go
           mkdir -p dist
           mv "$OUTPUT" "dist/nginx-updater-${{ matrix.name }}${EXT}"
       
@@ -99,27 +100,30 @@ jobs:
           name: Release ${{ steps.tag.outputs.tag }}
           body: |
             ## nginx_updater ${{ steps.tag.outputs.tag }}
-            
-            ### Downloads
-            
+
+            ### 一键安装
+
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | sudo bash
+            ```
+
+            指定版本安装：
+
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | sudo bash -s -- --version ${{ steps.tag.outputs.tag }}
+            ```
+
+            ### 下载列表
+
             - **Linux AMD64**: `nginx-updater-linux-amd64`
             - **Linux ARM64**: `nginx-updater-linux-arm64`
             - **macOS AMD64**: `nginx-updater-darwin-amd64`
             - **macOS ARM64**: `nginx-updater-darwin-arm64`
             - **Windows AMD64**: `nginx-updater-windows-amd64.exe`
-            
+
             ### Checksums
-            
+
             See `checksums.txt` for SHA256 checksums.
-            
-            ### Installation
-            
-            ```bash
-            # Download and install (Linux example)
-            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/nginx-updater-linux-amd64
-            chmod +x nginx-updater-linux-amd64
-            sudo mv nginx-updater-linux-amd64 /usr/local/bin/nginx-updater
-            ```
           files: |
             dist/nginx-updater-*
             dist/checksums.txt

@@ -20,6 +20,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+var version = "dev"
+
 const (
 	defaultNginxConfPath = "/etc/nginx/conf.d/upstream.conf"
 	defaultConfigPath    = "/etc/nginx_updater/config.yaml"
@@ -37,6 +39,12 @@ type Config struct {
 }
 
 func main() {
+	// 处理 --version
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
+		fmt.Printf("nginx-updater %s\n", version)
+		os.Exit(0)
+	}
+
 	cfg := parseConfig()
 	logger := log.New(os.Stdout, "[nginx-updater] ", log.LstdFlags)
 	clientset, err := getKubernetesClient()
