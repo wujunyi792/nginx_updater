@@ -55,6 +55,11 @@ echo -e "${GREEN}开始安装 nginx_updater...${NC}"
 
 # 1. 安装二进制文件
 echo -e "${YELLOW}[1/5] 安装二进制文件...${NC}"
+# 如果服务正在运行，先停止，避免 "Text file busy" 错误
+if systemctl is-active --quiet "$BINARY_NAME" 2>/dev/null; then
+    echo -e "${YELLOW}  服务正在运行，先停止服务...${NC}"
+    systemctl stop "$BINARY_NAME"
+fi
 cp "$BINARY_PATH" "$INSTALL_DIR/$BINARY_NAME"
 chmod +x "$INSTALL_DIR/$BINARY_NAME"
 echo -e "${GREEN}✓ 二进制文件已安装到 $INSTALL_DIR/$BINARY_NAME${NC}"
