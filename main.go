@@ -27,15 +27,22 @@ const (
 	defaultConfigPath    = "/etc/nginx_updater/config.yaml"
 )
 
+type Upstream struct {
+	Name     string `yaml:"Name"`     // upstream 块名称，如 "backend_http"
+	PortName string `yaml:"PortName"` // K8s Service 端口名
+}
+
 type Config struct {
-	Namespace      string   `yaml:"Namespace"`
-	ServiceName    string   `yaml:"ServiceName"`
-	PortName       string   `yaml:"PortName"`
-	NginxConf      string   `yaml:"NginxConf"`
-	ReloadCmd      []string `yaml:"ReloadCmd"`
-	NodeLabelKey   string   `yaml:"NodeLabelKey"`
-	NodeLabelVal   string   `yaml:"NodeLabelVal"`
-	IgnoreNotReady bool     `yaml:"IgnoreNotReady"`
+	Namespace      string     `yaml:"Namespace"`
+	ServiceName    string     `yaml:"ServiceName"`
+	NginxConf      string     `yaml:"NginxConf"`
+	ReloadCmd      []string   `yaml:"ReloadCmd"`
+	NodeLabelKey   string     `yaml:"NodeLabelKey"`
+	NodeLabelVal   string     `yaml:"NodeLabelVal"`
+	IgnoreNotReady bool       `yaml:"IgnoreNotReady"`
+	Upstreams      []Upstream `yaml:"Upstreams"`
+	// 保留旧字段用于向后兼容
+	PortName string `yaml:"PortName"`
 }
 
 func main() {
@@ -147,6 +154,11 @@ func parseConfig() *Config {
 		log.Fatal("service name must be specified (via config file or --service flag)")
 	}
 
+	// 向后兼容：如果没有配置 Upstreams，从旧的 PortName 字段构造默认 upstream
+	if len(cfg.Upstreams) == 0 {
+		cfg.Upstreams = []Upstream{{Name: "backend", PortName: cfg.PortName}}
+	}
+
 	return cfg
 }
 
@@ -221,11 +233,16 @@ func watchNodes(ctx context.Context, clientset *kubernetes.Clientset, cfg *Confi
 	}
 }
 func updateNginxConfig(ctx context.Context, clientset *kubernetes.Clientset, cfg *Config, logger *log.Logger) error {
-	port, err := getServicePort(ctx, clientset, cfg.Namespace, cfg.ServiceName, cfg.PortName)
-	if err != nil {
-		return fmt.Errorf("getServicePort error: %w", err)
+	// 为每组 upstream 获取对应端口
+	ports := make(map[string]int32)
+	for _, u := range cfg.Upstreams {
+		port, err := getServicePort(ctx, clientset, cfg.Namespace, cfg.ServiceName, u.PortName)
+		if err != nil {
+			return fmt.Errorf("getServicePort error for upstream %s (port %s): %w", u.Name, u.PortName, err)
+		}
+		ports[u.Name] = port
+		logger.Printf("Upstream %s: using port %d for service %s/%s", u.Name, port, cfg.Namespace, cfg.ServiceName)
 	}
-	logger.Printf("Using port %d for service %s/%s", port, cfg.Namespace, cfg.ServiceName)
 	ips, err := getNodeIPs(ctx, clientset, cfg.NodeLabelKey, cfg.NodeLabelVal, cfg.IgnoreNotReady)
 	if err != nil {
 		return fmt.Errorf("getNodeIPs error: %w", err)
@@ -234,7 +251,7 @@ func updateNginxConfig(ctx context.Context, clientset *kubernetes.Clientset, cfg
 		return fmt.Errorf("no nodes found with specified label filter")
 	}
 	logger.Printf("Found nodes: %v", ips)
-	err = generateNginxConf(cfg.NginxConf, ips, port)
+	err = generateNginxConf(cfg.NginxConf, cfg.Upstreams, ports, ips)
 	if err != nil {
 		return fmt.Errorf("generateNginxConf error: %w", err)
 	}
@@ -302,13 +319,19 @@ func getNodeIPs(ctx context.Context, clientset *kubernetes.Clientset, labelKey, 
 	}
 	return ips, nil
 }
-func generateNginxConf(path string, ips []string, port int32) error {
+func generateNginxConf(path string, upstreams []Upstream, ports map[string]int32, ips []string) error {
 	var builder strings.Builder
-	builder.WriteString("upstream backend {\n")
-	for _, ip := range ips {
-		builder.WriteString(fmt.Sprintf("    server %s:%d;\n", ip, port))
+	for i, u := range upstreams {
+		if i > 0 {
+			builder.WriteString("\n")
+		}
+		port := ports[u.Name]
+		builder.WriteString(fmt.Sprintf("upstream %s {\n", u.Name))
+		for _, ip := range ips {
+			builder.WriteString(fmt.Sprintf("    server %s:%d;\n", ip, port))
+		}
+		builder.WriteString("}\n")
 	}
-	builder.WriteString("}\n")
 	return os.WriteFile(path, []byte(builder.String()), 0644)
 }
 func reloadNginx(cmdArgs []string) error {

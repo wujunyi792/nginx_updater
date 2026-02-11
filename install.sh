@@ -165,7 +165,17 @@ install_default_config() {
 # Kubernetes 服务配置
 Namespace: "default"
 ServiceName: "your-service"  # 必需：请修改为实际的服务名称
-PortName: ""  # 可选
+
+# 多组 upstream 配置（推荐）
+# 每组指定 upstream 块名称和对应的 K8s Service 端口名
+Upstreams:
+  - Name: "backend_http"
+    PortName: "http"
+  - Name: "backend_https"
+    PortName: "https"
+
+# 也可使用旧的单 upstream 模式（向后兼容）：
+# PortName: ""  # 将生成 upstream backend { ... }
 
 # Nginx 配置
 NginxConf: "/etc/nginx/conf.d/upstream.conf"
