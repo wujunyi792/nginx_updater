@@ -251,9 +251,13 @@ func updateNginxConfig(ctx context.Context, clientset *kubernetes.Clientset, cfg
 		return fmt.Errorf("no nodes found with specified label filter")
 	}
 	logger.Printf("Found nodes: %v", ips)
-	err = generateNginxConf(cfg.NginxConf, cfg.Upstreams, ports, ips)
+	changed, err := generateNginxConf(cfg.NginxConf, cfg.Upstreams, ports, ips)
 	if err != nil {
 		return fmt.Errorf("generateNginxConf error: %w", err)
+	}
+	if !changed {
+		logger.Println("Nginx config unchanged, skipping reload")
+		return nil
 	}
 	logger.Printf("Nginx config updated at %s", cfg.NginxConf)
 	err = reloadNginx(cfg.ReloadCmd)
@@ -319,7 +323,7 @@ func getNodeIPs(ctx context.Context, clientset *kubernetes.Clientset, labelKey, 
 	}
 	return ips, nil
 }
-func generateNginxConf(path string, upstreams []Upstream, ports map[string]int32, ips []string) error {
+func generateNginxConf(path string, upstreams []Upstream, ports map[string]int32, ips []string) (bool, error) {
 	var builder strings.Builder
 	for i, u := range upstreams {
 		if i > 0 {
@@ -332,7 +336,15 @@ func generateNginxConf(path string, upstreams []Upstream, ports map[string]int32
 		}
 		builder.WriteString("}\n")
 	}
-	return os.WriteFile(path, []byte(builder.String()), 0644)
+	newContent := []byte(builder.String())
+
+	// 比较现有文件内容，相同则跳过写入
+	oldContent, err := os.ReadFile(path)
+	if err == nil && string(oldContent) == string(newContent) {
+		return false, nil
+	}
+
+	return true, os.WriteFile(path, newContent, 0644)
 }
 func reloadNginx(cmdArgs []string) error {
 	if len(cmdArgs) == 0 {
